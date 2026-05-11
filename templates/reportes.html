@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-title"><h2>Reportes Institucionales</h2><p>Generación de reportes para dirección académica y unidades de apoyo.</p></div>
+<div class="mb-4"><a href="{{ url_for('reporte_institucional') }}" class="btn btn-primary"><i class="bi bi-printer"></i> Generar reporte institucional imprimible</a></div>
+<div class="report-grid">
+  {% set cards = [
+    ('riesgo_alto','bi-exclamation-octagon-fill','Estudiantes en riesgo alto','Listado de estudiantes con mayor prioridad de atención'),
+    ('riesgo_carrera','bi-bar-chart-fill','Riesgo por carrera','Análisis de riesgo agrupado por carrera'),
+    ('riesgo_semestre','bi-graph-up-arrow','Riesgo por semestre','Análisis de riesgo agrupado por semestre'),
+    ('intervenciones','bi-clipboard-check-fill','Intervenciones realizadas','Resumen de intervenciones por periodo'),
+    ('efectividad','bi-pie-chart-fill','Efectividad de intervenciones','Análisis del impacto de acciones'),
+    ('resumen','bi-file-earmark-text-fill','Resumen ejecutivo','Informe general para dirección académica')
+  ] %}
+  {% for tipo,icon,title,desc in cards %}<div class="report-card"><i class="bi {{ icon }}"></i><h5>{{ title }}</h5><p>{{ desc }}</p><a class="btn btn-outline-primary" href="{{ url_for('reporte_csv', tipo=tipo) }}">Generar</a></div>{% endfor %}
+</div>
+<div class="text-center mt-4 muted">Formatos disponibles: CSV y reporte institucional imprimible/guardable como PDF desde el navegador.</div>
+{% endblock %}

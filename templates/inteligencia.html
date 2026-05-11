@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-title page-title-wide">
+  <div><h2>Centro de Inteligencia Institucional</h2><p>Insights automáticos, métricas del modelo y prioridades de gestión académica.</p></div>
+  <div class="mode-actions"><a href="{{ url_for('reporte_institucional') }}" class="btn btn-primary"><i class="bi bi-file-earmark-pdf"></i> Reporte institucional</a></div>
+</div>
+<div class="row g-4 mb-4">
+  {% for i in insights %}
+  <div class="col-lg-3 col-md-6"><div class="panel insight-card-pro"><span>{{ i.tipo }}</span><h4>{{ i.valor }}</h4><strong>{{ i.titulo }}</strong><p>{{ i.detalle }}</p></div></div>
+  {% endfor %}
+</div>
+<div class="row g-4">
+  <div class="col-lg-8"><div class="panel"><h5>Variables con mayor asociación al riesgo</h5><canvas id="intelImportancia" height="120"></canvas></div></div>
+  <div class="col-lg-4"><div class="panel"><h5>Métricas del modelo</h5>
+    {% for k,v in metrics.items() %}<div class="metric-row"><span>{{ k|upper }}</span><div class="metric-bar"><div style="width: {{ v }}%"></div></div><strong>{{ '%.1f'|format(v) }}%</strong></div>{% endfor %}
+  </div></div>
+</div>
+<div class="row g-4 mt-1">
+  <div class="col-lg-6"><div class="panel"><h5>Ruta institucional de decisión</h5><div class="flow-pro"><div>Datos</div><i class="bi bi-arrow-right"></i><div>Predicción</div><i class="bi bi-arrow-right"></i><div>Alerta</div><i class="bi bi-arrow-right"></i><div>Intervención</div><i class="bi bi-arrow-right"></i><div>Seguimiento</div></div></div></div>
+  <div class="col-lg-6"><div class="panel"><h5>Estudiantes con prioridad institucional</h5><table class="table compact-table"><thead><tr><th>Código</th><th>Carrera</th><th>Prob.</th><th>Riesgo</th></tr></thead><tbody>{% for _,e in top_students.iterrows() %}<tr><td>{{ e.codigo_estudiante }}</td><td>{{ e.carrera }}</td><td>{{ '%.1f'|format(e.probabilidad_desercion*100) }}%</td><td><span class="risk-badge {{ badge_class(e.nivel_riesgo) }}">{{ e.nivel_riesgo }}</span></td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const intelCharts={{ charts|tojson }};
+new Chart(document.getElementById('intelImportancia'),{type:'bar',data:{labels:intelCharts.importance.map(x=>x.factor),datasets:[{data:intelCharts.importance.map(x=>x.importancia),backgroundColor:'#2563eb'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:1}}}});
+</script>
+{% endblock %}

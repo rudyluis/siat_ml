@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-title page-title-wide">
+  <div>
+    <h2>Analítica Académica</h2>
+    <p>Análisis profundo de factores académicos, desempeño institucional y riesgo de deserción.</p>
+  </div>
+  <div class="mode-actions">
+    <button class="btn btn-outline-primary btn-sm" id="btnModoPresentacion"><i class="bi bi-easel2"></i> Modo presentación</button>
+    <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="bi bi-file-earmark-pdf"></i> Exportar vista</button>
+  </div>
+</div>
+
+<div class="panel analytics-filter-panel">
+  <div class="panel-headline">
+    <div>
+      <h5>Filtros generales del módulo</h5>
+      <p>Estos selectores organizan la lectura institucional de la analítica académica.</p>
+    </div>
+    <span class="info-chip"><i class="bi bi-funnel"></i> Filtros persistentes</span>
+  </div>
+  <div class="global-filter-grid">
+    <div><label>Gestión académica</label><select class="form-select"><option>2025</option><option>2024</option><option>2023</option><option>Todas</option></select></div>
+    <div><label>Carrera</label><select id="cmpCarrera" class="form-select"><option value="">Todas</option>{% for c in carreras %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+    <div><label>Semestre</label><select id="cmpSemestre" class="form-select"><option value="">Todos</option>{% for s in semestres %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+    <div><label>Nivel de riesgo</label><select id="cmpRiesgo" class="form-select"><option value="">Todos</option><option>Bajo</option><option>Medio</option><option>Alto</option></select></div>
+    <div><label>Vista analítica</label><select id="aaVistaSelector" class="form-select"><option value="resumen">Resumen general</option><option value="carrera">Por carrera</option><option value="semestre">Por semestre</option><option value="materias">Materias críticas</option><option value="factores">Factores académicos</option><option value="correlaciones">Correlaciones</option><option value="comparacion">Comparación de variables</option><option value="segmentacion">Segmentación</option><option value="tendencias">Tendencias</option></select></div>
+  </div>
+</div>
+
+<div class="analytics-tabs mb-3" id="aaTabs">
+  <button class="active" data-tab="resumen">Resumen general</button>
+  <button data-tab="carrera">Por carrera</button>
+  <button data-tab="semestre">Por semestre</button>
+  <button data-tab="materias">Materias críticas</button>
+  <button data-tab="factores">Factores académicos</button>
+  <button data-tab="correlaciones">Correlaciones</button>
+  <button data-tab="comparacion">Comparación de variables</button>
+  <button data-tab="segmentacion">Segmentación</button>
+  <button data-tab="tendencias">Tendencias</button>
+</div>
+
+<section class="aa-section active" id="aa-tab-resumen">
+  <div class="kpi-grid kpi-grid-12">
+    <div class="kpi-card icon-blue"><span>Estudiantes analizados</span><strong>{{ kpis.total }}</strong><small>100% del total</small><i class="bi bi-people-fill"></i></div>
+    <div class="kpi-card icon-green"><span>Promedio general</span><strong>{{ kpis.promedio_general }}</strong><small>Indicador académico</small><i class="bi bi-mortarboard-fill"></i></div>
+    <div class="kpi-card icon-purple"><span>Tasa de aprobación</span><strong>{{ kpis.tasa_aprobacion }}%</strong><small>Rendimiento global</small><i class="bi bi-graph-up-arrow"></i></div>
+    </div>
+  <div class="kpi-grid kpi-grid-12">
+    <div class="kpi-card icon-red"><span>Tasa de reprobación</span><strong>{{ kpis.tasa_reprobacion }}%</strong><small>Factor crítico</small><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <div class="kpi-card icon-orange"><span>Asistencia promedio</span><strong>{{ kpis.asistencia_prom }}%</strong><small>Compromiso académico</small><i class="bi bi-clock-fill"></i></div>
+    <div class="kpi-card icon-yellow"><span>En riesgo medio + alto</span><strong>{{ kpis.riesgo_ma_pct }}%</strong><small>{{ kpis.riesgo_ma }} estudiantes</small><i class="bi bi-exclamation-diamond-fill"></i></div>
+  </div>
+  <div class="insight-strip mt-3"><strong>Hallazgo principal:</strong> el módulo consolida rendimiento, asistencia, reprobación y riesgo para orientar decisiones preventivas.</div>
+  <div class="analytics-grid-two mt-3">
+    <div class="panel chart-card"><h5>Distribución de estudiantes por nivel de riesgo</h5><canvas id="aaDistribucion" height="210"></canvas></div>
+    <div class="panel chart-card"><h5>Estudiantes por nivel de riesgo</h5><canvas id="aaBarrasRiesgo" height="210"></canvas></div>
+  </div>
+</section>
+
+<section class="aa-section" id="aa-tab-carrera">
+  <div class="insight-strip"><strong>Hallazgo por carrera:</strong> permite identificar programas con mayor concentración de riesgo académico y priorizar acciones de apoyo.</div>
+  <div class="analytics-grid-two mt-3">
+    <div class="panel chart-card"><h5>Riesgo académico por carrera</h5><canvas id="aaCarreraRiesgo" height="220"></canvas></div>
+    <div class="panel chart-card"><h5>Asistencia promedio por carrera</h5><canvas id="aaAsistenciaCarrera" height="220"></canvas></div>
+    <div class="panel chart-card"><h5>Distribución de estudiantes por carrera</h5><canvas id="aaPieCarrera" height="220"></canvas></div>
+    <div class="panel chart-card"><h5>Tabla interpretativa por carrera</h5><div class="small-analytic-table"><table class="table table-sm"><thead><tr><th>Indicador</th><th>Lectura</th><th>Acción</th></tr></thead><tbody><tr><td>Riesgo alto</td><td>Identifica carreras con mayor vulnerabilidad.</td><td>Priorizar tutorías.</td></tr><tr><td>Asistencia</td><td>Mide compromiso académico por programa.</td><td>Monitorear ausentismo.</td></tr><tr><td>Distribución</td><td>Contextualiza volumen de estudiantes.</td><td>Ajustar recursos.</td></tr></tbody></table></div></div>
+  </div>
+</section>
+
+<section class="aa-section" id="aa-tab-semestre">
+  <div class="insight-strip"><strong>Hallazgo por semestre:</strong> facilita detectar ciclos críticos de adaptación, rezago y abandono temprano.</div>
+  <div class="analytics-grid-two mt-3">
+    <div class="panel chart-card"><h5>Riesgo por semestre</h5><canvas id="aaSemestreRiesgo" height="230"></canvas></div>
+    <div class="panel chart-card"><h5>Semáforo institucional por semestre</h5><div class="semaforo-grid"><div><b>1.º a 3.º</b><span class="risk-badge risk-high">Atención prioritaria</span></div><div><b>4.º a 6.º</b><span class="risk-badge risk-medium">Seguimiento</span></div><div><b>7.º en adelante</b><span class="risk-badge risk-low">Monitoreo</span></div></div></div>
+  </div>
+</section>
+
+<section class="aa-section" id="aa-tab-materias">
+  <div class="insight-strip"><strong>Materias críticas:</strong> orienta la identificación de asignaturas con mayor reprobación asociada al riesgo.</div>
+  <div class="analytics-grid-two mt-3">
+    <div class="panel chart-card"><h5>Factores académicos asociados al riesgo</h5><canvas id="aaImportancia" height="230"></canvas></div>
+    <div class="panel chart-card"><h5>Acciones sugeridas para materias críticas</h5><div class="action-list"><div><i class="bi bi-check-circle"></i> Tutorías focalizadas por asignatura.</div><div><i class="bi bi-check-circle"></i> Evaluación temprana de rendimiento.</div><div><i class="bi bi-check-circle"></i> Refuerzo académico en semanas críticas.</div><div><i class="bi bi-check-circle"></i> Seguimiento docente a estudiantes reincidentes.</div></div></div>
+  </div>
+</section>
+
+<section class="aa-section" id="aa-tab-factores">
+  <div class="insight-strip"><strong>Factores académicos:</strong> vincula asistencia, promedio, reprobaciones y avance curricular con el riesgo de deserción.</div>
+  <div class="analytics-grid-two mt-3">
+    <div class="panel chart-card"><h5>Promedio académico por nivel de riesgo</h5><canvas id="aaPromedioRiesgo" height="220"></canvas></div>
+    <div class="panel chart-card"><h5>Factores académicos priorizados</h5><canvas id="aaImportanciaExtra" height="220"></canvas></div>
+  </div>
+</section>
+
+<section class="aa-section" id="aa-tab-correlaciones">
+  <div class="insight-strip"><strong>Correlaciones:</strong> permite observar relaciones entre asistencia, promedio, reprobaciones, avance curricular y probabilidad de deserción.</div>
+  <div class="analytics-grid-two mt-3">
+    <div class="panel chart-card wide-card"><h5>Correlaciones académicas</h5><div id="corrHeatmap" class="corr-heatmap"></div></div>
+    <div class="panel chart-card"><h5>Lectura metodológica</h5><p class="text-muted">Las correlaciones no implican causalidad; permiten identificar asociaciones relevantes para la toma de decisiones y para la priorización de intervenciones académicas.</p></div>
+  </div>
+</section>
+
+<section class="aa-section" id="aa-tab-comparacion">
+  <div class="panel comparison-panel">
+    <div class="panel-headline"><div><h5>Selectores de comparación</h5><p>Compare dos variables académicas y observe su relación con el riesgo.</p></div><span class="info-chip"><i class="bi bi-info-circle"></i> Análisis dinámico</span></div>
+    <div class="comparison-controls comparison-controls-v5">
+      <div><label>Variable X (Eje horizontal)</label><select id="cmpX" class="form-select">{% for k,v in variables.items() %}<option value="{{ k }}" {% if k=='asistencia_pct' %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+      <div><label>Variable Y (Eje vertical)</label><select id="cmpY" class="form-select">{% for k,v in variables.items() %}<option value="{{ k }}" {% if k=='probabilidad_desercion' %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+      <div><label>Tipo de gráfico</label><select id="cmpTipo" class="form-select"><option value="scatter">Dispersión</option><option value="bar">Barras</option><option value="line">Línea</option><option value="doughnut">Pie / Donut</option></select></div>
+      <div class="button-group"><button id="btnComparar" class="btn btn-primary w-100"><i class="bi bi-activity"></i> Comparar</button></div>
+      <div class="button-group"><button id="btnLimpiar" class="btn btn-outline-primary w-100"><i class="bi bi-arrow-counterclockwise"></i> Limpiar filtros</button></div>
+    </div>
+  </div>
+  <div class="analytics-layout mt-3">
+    <div class="charts-area"><div class="panel chart-card"><h5>Relación dinámica entre variables seleccionadas</h5><canvas id="aaComparacionDinamica" height="250"></canvas><div id="cmpCorrelation" class="mini-insight"></div></div></div>
+    <aside class="summary-card panel"><h5>Resumen de la comparación</h5><div class="summary-row"><span>Variable X</span><strong id="sumX">Asistencia (%)</strong></div><div class="summary-row"><span>Variable Y</span><strong id="sumY">Probabilidad de deserción</strong></div><div class="summary-row"><span>Tipo de gráfico</span><strong id="sumTipo">Dispersión</strong></div><div class="summary-row"><span>Registros filtrados</span><strong id="sumN">0</strong></div><div class="summary-row"><span>Correlación (r)</span><strong id="sumCorr">-</strong></div><div class="summary-interpretation"><span>Interpretación</span><p id="sumInterpretacion">Seleccione las variables y presione Comparar.</p></div></aside>
+  </div>
+</section>
+
+<section class="aa-section" id="aa-tab-segmentacion">
+  <div class="insight-strip"><strong>Segmentación:</strong> agrupa estudiantes según vulnerabilidad académica para focalizar acciones preventivas.</div>
+  <div class="analytics-grid-two mt-3">
+    <div class="panel chart-card"><h5>Estudiantes con vulnerabilidad académica prioritaria</h5><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Código</th><th>Carrera</th><th>Sem.</th><th>Prom.</th><th>Asist.</th><th>Reprob.</th><th>Riesgo</th><th>Motivo</th></tr></thead><tbody>{% for _,e in tabla.iterrows() %}<tr><td>{{ e.codigo_estudiante }}</td><td>{{ e.carrera }}</td><td>{{ e.semestre }}</td><td>{{ '%.1f'|format(e.promedio_2sem) }}</td><td>{{ '%.1f'|format(e.asistencia_pct) }}%</td><td>{{ e.reprobaciones_total }}</td><td><span class="risk-badge {{ badge_class(e.nivel_riesgo) }}">{{ e.nivel_riesgo }}</span></td><td>{{ e.motivo }}</td></tr>{% endfor %}</tbody></table></div></div>
+    <div class="panel chart-card"><h5>Perfiles institucionales sugeridos</h5><div class="profile-cards"><div><b>Perfil A</b><span>Alto riesgo académico</span><small>Reprobaciones + baja asistencia.</small></div><div><b>Perfil B</b><span>Riesgo económico-administrativo</span><small>Pagos pendientes + desempeño medio.</small></div><div><b>Perfil C</b><span>Monitoreo preventivo</span><small>Riesgo bajo con señales iniciales.</small></div></div></div>
+  </div>
+</section>
+
+<section class="aa-section" id="aa-tab-tendencias">
+  <div class="insight-strip"><strong>Tendencias:</strong> ofrece una lectura evolutiva para seguimiento por gestión, periodo y ciclo académico.</div>
+  <div class="analytics-grid-two mt-3">
+    <div class="panel chart-card"><h5>Tendencia institucional simulada</h5><canvas id="aaTendencia" height="230"></canvas></div>
+    <div class="panel chart-card"><h5>Uso en la propuesta doctoral</h5><p class="text-muted">Esta vista permite justificar el seguimiento longitudinal y la mejora continua del sistema de alerta temprana, articulando datos, modelo predictivo, intervención y evaluación institucional.</p></div>
+  </div>
+</section>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const aaCharts = {{ charts|tojson | safe }};
+renderAcademicAnalyticsChartsAdvanced(aaCharts);
+initAcademicTabs();
+</script>
+{% endblock %}

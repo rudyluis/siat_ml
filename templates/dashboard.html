@@ -1,0 +1,95 @@
+{% extends 'base.html' %} {% block content %}
+<div class="page-title">
+  <h2>Dashboard Ejecutivo</h2>
+  <p>Monitoreo institucional del riesgo de deserción estudiantil.</p>
+</div>
+{% if model_error %}
+<div class="alert alert-warning small">
+  El modelo entrenado no pudo cargarse en este entorno. El prototipo usa cálculo
+  visual alternativo. En ejecución local use Scikit-learn 1.6.1.
+</div>
+{% endif %}
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <span>Estudiantes analizados</span><strong>{{ kpis.total }}</strong
+    ><i class="bi bi-people-fill text-primary"></i>
+  </div>
+  <div class="kpi-card danger">
+    <span>Riesgo alto</span><strong>{{ kpis.alto }}</strong
+    ><small>{{ kpis.alto_pct }}%</small>
+  </div>
+  <div class="kpi-card warning">
+    <span>Riesgo medio</span><strong>{{ kpis.medio }}</strong
+    ><small>{{ kpis.medio_pct }}%</small>
+  </div>
+  <div class="kpi-card success">
+    <span>Riesgo bajo</span><strong>{{ kpis.bajo }}</strong
+    ><small>{{ kpis.bajo_pct }}%</small>
+  </div>
+</div>
+<div class="row g-4 mt-1">
+  <div class="col-lg-6">
+    <div class="panel">
+      <h5>Distribución de riesgo</h5>
+      <canvas id="chartDist" ></canvas>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="panel">
+      <h5>Riesgo por semestre</h5>
+      <canvas id="chartSemestre" ></canvas>
+    </div>
+  </div>
+</div>
+<div class="row g-4 mt-1">
+  <div class="col-lg-12">
+    <div class="panel">
+      <h5>Riesgo por carrera</h5>
+      <canvas id="chartCarrera" ></canvas>
+    </div>
+  </div>
+</div>
+<div class="panel mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5>Estudiantes críticos</h5>
+    <a href="{{ url_for('alertas') }}" class="btn btn-sm btn-outline-primary"
+      >Ver alertas</a
+    >
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Carrera</th>
+          <th>Semestre</th>
+          <th>Probabilidad</th>
+          <th>Riesgo</th>
+          <th>Acción sugerida</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for _,e in criticos.iterrows() %}
+        <tr>
+          <td>{{ e.codigo_estudiante }}</td>
+          <td>{{ e.carrera }}</td>
+          <td>{{ e.semestre }}</td>
+          <td>{{ '%.1f'|format(e.probabilidad_desercion*100) }}%</td>
+          <td>
+            <span class="risk-badge {{ badge_class(e.nivel_riesgo) }}"
+              >{{ e.nivel_riesgo }}</span
+            >
+          </td>
+          <td>{{ e.accion_sugerida }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  const charts = {{ charts|tojson }};
+  renderDashboardCharts(charts);
+</script>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<a href="{{ url_for('estudiantes') }}" class="back-link"><i class="bi bi-arrow-left"></i> Volver a estudiantes</a>
+<div class="page-title"><h2>Perfil del Estudiante</h2><p>Evaluación individual del riesgo y acciones sugeridas.</p></div>
+<div class="row g-4">
+  <div class="col-lg-3"><div class="panel profile-card text-center"><div class="profile-avatar"><i class="bi bi-person-fill"></i></div><h4>{{ e.codigo_estudiante }}</h4><p>{{ e.carrera }}</p><span>Semestre {{ e.semestre }}</span></div></div>
+  <div class="col-lg-3"><div class="panel risk-panel"><span>Riesgo:</span><h3 class="risk-text-{{ e.nivel_riesgo|lower }}">{{ e.nivel_riesgo|upper }}</h3><p>Probabilidad de deserción</p><strong>{{ '%.0f'|format(e.probabilidad_desercion*100) }}%</strong><div class="progress mt-3"><div class="progress-bar bg-danger" style="width: {{ e.probabilidad_desercion*100 }}%"></div></div></div></div>
+  <div class="col-lg-6"><div class="panel"><h5>Acción sugerida</h5><p class="fs-5">{{ e.accion_sugerida }}</p><p><strong>Motivo principal:</strong> {{ motivo }}</p><a href="{{ url_for('intervenciones') }}" class="btn btn-danger">Generar intervención</a></div></div>
+</div>
+<div class="row g-4 mt-1">
+  <div class="col-lg-5"><div class="panel"><h5>Resumen académico</h5><table class="table compact-table"><tr><td>Promedio 1er semestre</td><td>{{ '%.2f'|format(e.promedio_1sem) }}</td></tr><tr><td>Promedio 2do semestre</td><td>{{ '%.2f'|format(e.promedio_2sem) }}</td></tr><tr><td>Asistencia promedio</td><td>{{ '%.1f'|format(e.asistencia_pct) }}%</td></tr><tr><td>Reprobaciones totales</td><td>{{ e.reprobaciones_total }}</td></tr><tr><td>Pagos al día</td><td>{{ 'Sí' if e.pagos_al_dia==1 else 'No' }}</td></tr><tr><td>Beca</td><td>{{ 'Sí' if e.beneficiario_beca==1 else 'No' }}</td></tr></table></div></div>
+  <div class="col-lg-7"><div class="panel"><h5>Factores que influyen en el riesgo</h5>{% for name,val in factors %}<div class="factor-row"><span>{{ name }}</span><div class="factor-bar"><div style="width: {{ val }}%"></div></div><strong>{{ '%.0f'|format(val) }}%</strong></div>{% endfor %}</div></div>
+</div>
+
+<div class="row g-4 mt-1">
+  <div class="col-lg-7"><div class="panel"><h5>Explicabilidad del riesgo</h5><p class="muted">Factores locales que explican la clasificación del estudiante dentro del sistema.</p>
+    {% for item in explain %}<div class="explain-row"><div><strong>{{ item.factor }}</strong><small>{{ item.detalle }}</small></div><span>{{ item.valor }}</span><div class="factor-bar"><div style="width: {{ item.peso }}%"></div></div><b>{{ item.direccion }}</b></div>{% endfor %}
+  </div></div>
+  <div class="col-lg-5"><div class="panel"><h5>Línea temporal académica</h5><div class="timeline-pro">{% for t in timeline %}<div><span>{{ t.periodo }}</span><strong>{{ t.estado }}</strong><em class="risk-text-{{ t.riesgo|lower }}">{{ t.riesgo }}</em><p>{{ t.detalle }}</p></div>{% endfor %}</div></div></div>
+</div>
+{% endblock %}

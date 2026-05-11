@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-title page-title-wide no-print"><div><h2>Reporte Institucional Imprimible</h2><p>Resumen ejecutivo para dirección académica y defensa de la propuesta.</p></div><button onclick="window.print()" class="btn btn-primary"><i class="bi bi-printer"></i> Imprimir / guardar PDF</button></div>
+<div class="print-report panel">
+  <h2>SIAT-DE: Reporte Ejecutivo Institucional</h2><p class="muted">Sistema Inteligente de Alerta Temprana para la Deserción Estudiantil</p>
+  <div class="report-kpis"><div><span>Estudiantes</span><strong>{{ kpis.total }}</strong></div><div><span>Riesgo alto</span><strong>{{ kpis.alto }}</strong></div><div><span>Riesgo medio</span><strong>{{ kpis.medio }}</strong></div><div><span>Riesgo bajo</span><strong>{{ kpis.bajo }}</strong></div></div>
+  <h4>Hallazgos principales</h4>{% for i in insights %}<p><b>{{ i.titulo }}:</b> {{ i.valor }}. {{ i.detalle }}</p>{% endfor %}
+  <h4>Estudiantes críticos priorizados</h4><table class="table table-bordered"><thead><tr><th>Código</th><th>Carrera</th><th>Semestre</th><th>Probabilidad</th><th>Riesgo</th><th>Acción sugerida</th></tr></thead><tbody>{% for _,e in criticos.iterrows() %}<tr><td>{{ e.codigo_estudiante }}</td><td>{{ e.carrera }}</td><td>{{ e.semestre }}</td><td>{{ '%.1f'|format(e.probabilidad_desercion*100) }}%</td><td>{{ e.nivel_riesgo }}</td><td>{{ e.accion_sugerida }}</td></tr>{% endfor %}</tbody></table>
+  <h4>Conclusión ejecutiva</h4><p>El sistema SIAT-DE permite articular datos académicos, modelo predictivo, alertas tempranas, intervención y seguimiento institucional. Su utilidad se centra en anticipar el riesgo, priorizar recursos y fortalecer la permanencia estudiantil mediante decisiones sustentadas en evidencia.</p>
+</div>
+{% endblock %}

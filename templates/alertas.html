@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-title"><h2>Alertas Tempranas</h2><p>Estudiantes con riesgo medio y alto priorizados para intervención.</p></div>
+<div class="panel">
+  <div class="row g-3 mb-3"><div class="col-md-3"><select class="form-select"><option>Todos los riesgos</option><option>Alto</option><option>Medio</option></select></div><div class="col-md-3"><select class="form-select"><option>Todos los estados</option><option>Pendiente</option><option>En proceso</option></select></div><div class="col-md-4"><input class="form-control" placeholder="Buscar alerta"></div><div class="col-md-2"><button class="btn btn-primary w-100">Buscar</button></div></div>
+  <div class="table-responsive"><table id="tablaData" class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Estudiante</th><th>Riesgo</th><th>Motivo</th><th>Responsable</th><th>Estado</th><th>Acción</th></tr></thead><tbody>{% for _,a in alertas.iterrows() %}<tr><td>{{ now.strftime('%d/%m/%Y') }}</td><td>{{ a.codigo_estudiante }}<br><small>{{ a.carrera }}</small></td><td><span class="risk-badge {{ badge_class(a.nivel_riesgo) }}">{{ a.nivel_riesgo }}</span></td><td>{{ a.motivo }}</td><td>{{ a.responsable }}</td><td><span class="status-pill">{{ a.estado_alerta }}</span></td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('perfil', codigo=a.codigo_estudiante) }}"><i class="bi bi-eye-fill"></i></a></td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

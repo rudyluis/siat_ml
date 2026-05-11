@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-title"><h2>Administración del Sistema</h2><p>Configuración funcional simulada del prototipo institucional.</p></div>
+<div class="admin-grid">
+  <div class="admin-card"><i class="bi bi-people-fill"></i><h5>Usuarios</h5><p>Gestionar usuarios del sistema</p></div>
+  <div class="admin-card"><i class="bi bi-shield-lock-fill"></i><h5>Roles</h5><p>Gestionar roles y permisos</p></div>
+  <div class="admin-card"><i class="bi bi-mortarboard-fill"></i><h5>Carreras</h5><p>Gestionar carreras y programas</p></div>
+  <div class="admin-card"><i class="bi bi-calendar3"></i><h5>Periodos académicos</h5><p>Gestionar periodos académicos</p></div>
+  <div class="admin-card"><i class="bi bi-speedometer"></i><h5>Umbrales de riesgo</h5><p>Bajo &lt; {{ low }} | Medio {{ low }}–{{ high }} | Alto ≥ {{ high }}</p></div>
+  <div class="admin-card"><i class="bi bi-cpu-fill"></i><h5>Modelo predictivo</h5><p>Subir y administrar modelos ML</p></div>
+</div>
+{% if model_error %}<div class="alert alert-warning mt-4">Modelo: requiere Scikit-learn 1.6.1 para carga exacta del pipeline entrenado.</div>{% endif %}
+{% endblock %}
