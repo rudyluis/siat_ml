@@ -26,7 +26,9 @@
   ('riesgo_carrera','bi-bar-chart-fill','Riesgo por carrera','Totales y porcentajes por carrera'),
   ('riesgo_semestre','bi-graph-up-arrow','Riesgo por semestre','Totales y porcentajes por semestre'),
   ('alertas','bi-bell-fill','Alertas priorizadas','Estudiantes con riesgo medio y alto'),
-  ('resumen','bi-file-earmark-text-fill','Base consolidada','Resultados individuales filtrados')
+  ('resumen','bi-file-earmark-text-fill','Base consolidada','Resultados individuales filtrados'),
+  ('intervenciones','bi-clipboard-check-fill','Intervenciones realizadas','Acciones registradas y su seguimiento'),
+  ('efectividad','bi-pie-chart-fill','Efectividad','Cambio observado después de intervenir')
 ] %}
 {% for tipo,icon,title,desc in cards %}
 <div class="report-card">
@@ -47,5 +49,4 @@
     <tbody>{% for _,e in preview.iterrows() %}<tr><td>{{ e.codigo_estudiante }}</td><td>{{ e.carrera }}</td><td>{{ e.semestre }}</td><td>{{ '%.1f'|format(e.probabilidad_desercion*100) }}%</td><td><span class="risk-badge {{ badge_class(e.nivel_riesgo) }}">{{ e.nivel_riesgo }}</span></td><td>{{ e.accion_sugerida }}</td></tr>{% else %}<tr><td colspan="6" class="text-center muted">No existen registros con los filtros seleccionados.</td></tr>{% endfor %}</tbody>
   </table></div>
 </div>
-<div class="alert alert-info mt-4"><i class="bi bi-info-circle"></i> Los reportes de intervenciones y efectividad se habilitarán cuando las acciones de seguimiento se almacenen de forma persistente; no se presentan resultados simulados como institucionales.</div>
 {% endblock %}
