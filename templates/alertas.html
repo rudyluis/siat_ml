@@ -1,8 +1,18 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="page-title"><h2>Alertas Tempranas</h2><p>Estudiantes con riesgo medio y alto priorizados para intervención.</p></div>
-<div class="panel">
-  <div class="row g-3 mb-3"><div class="col-md-3"><select class="form-select"><option>Todos los riesgos</option><option>Alto</option><option>Medio</option></select></div><div class="col-md-3"><select class="form-select"><option>Todos los estados</option><option>Pendiente</option><option>En proceso</option></select></div><div class="col-md-4"><input class="form-control" placeholder="Buscar alerta"></div><div class="col-md-2"><button class="btn btn-primary w-100">Buscar</button></div></div>
-  <div class="table-responsive"><table id="tablaData" class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Estudiante</th><th>Riesgo</th><th>Motivo</th><th>Responsable</th><th>Estado</th><th>Acción</th></tr></thead><tbody>{% for _,a in alertas.iterrows() %}<tr><td>{{ now.strftime('%d/%m/%Y') }}</td><td>{{ a.codigo_estudiante }}<br><small>{{ a.carrera }}</small></td><td><span class="risk-badge {{ badge_class(a.nivel_riesgo) }}">{{ a.nivel_riesgo }}</span></td><td>{{ a.motivo }}</td><td>{{ a.responsable }}</td><td><span class="status-pill">{{ a.estado_alerta }}</span></td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('perfil', codigo=a.codigo_estudiante) }}"><i class="bi bi-eye-fill"></i></a></td></tr>{% endfor %}</tbody></table></div>
-</div>
+<div class="page-title"><h2>Alertas Tempranas</h2><p>Gestión persistente de estudiantes con riesgo medio y alto.</p></div>
+<div class="panel mb-4"><form method="get" class="row g-3 align-items-end">
+<div class="col-md-3"><label class="form-label">Riesgo</label><select name="riesgo" class="form-select"><option value="">Todos</option>{% for r in ['Alto','Medio'] %}<option value="{{ r }}" {% if filtros.get('riesgo')==r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
+<div class="col-md-3"><label class="form-label">Estado</label><select name="estado" class="form-select"><option value="">Todos</option>{% for e in ['Pendiente','En proceso','Atendida','Cerrada'] %}<option value="{{ e }}" {% if filtros.get('estado')==e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+<div class="col-md-4"><label class="form-label">Buscar</label><input name="q" value="{{ filtros.get('q','') }}" class="form-control" placeholder="Código, carrera o motivo"></div>
+<div class="col-md-2"><button class="btn btn-primary w-100">Buscar</button></div>
+</form></div>
+<div class="panel"><div class="table-responsive"><table id="tablaData" class="table table-hover align-middle"><thead><tr><th>Actualización</th><th>Estudiante</th><th>Riesgo</th><th>Motivo</th><th>Responsable y estado</th><th>Acciones</th></tr></thead><tbody>
+{% for a in alertas %}<tr>
+<td>{{ a.fecha_actualizacion[:10] }}</td><td>{{ a.codigo_estudiante }}<br><small>{{ a.carrera }} · Sem. {{ a.semestre }}</small></td>
+<td><span class="risk-badge {{ badge_class(a.nivel_riesgo) }}">{{ a.nivel_riesgo }}</span><br><small>{{ '%.1f'|format(a.probabilidad*100) }}%</small></td><td>{{ a.motivo }}</td>
+<td><form method="post" action="{{ url_for('actualizar_alerta', alerta_id=a.id) }}" class="d-flex gap-2 flex-column"><input name="responsable" value="{{ a.responsable }}" class="form-control form-control-sm"><select name="estado" class="form-select form-select-sm">{% for e in ['Pendiente','En proceso','Atendida','Cerrada'] %}<option {% if a.estado==e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select><button class="btn btn-sm btn-outline-primary">Guardar</button></form></td>
+<td><a class="btn btn-sm btn-primary" href="{{ url_for('intervenciones') }}#nueva"><i class="bi bi-plus-lg"></i> Intervenir</a><a class="btn btn-sm btn-outline-secondary mt-2" href="{{ url_for('perfil', codigo=a.codigo_estudiante) }}"><i class="bi bi-eye"></i> Perfil</a></td>
+</tr>{% else %}<tr><td colspan="6" class="text-center">No existen alertas con estos filtros.</td></tr>{% endfor %}
+</tbody></table></div></div>
 {% endblock %}
