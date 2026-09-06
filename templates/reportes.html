@@ -1,17 +1,51 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="page-title"><h2>Reportes Institucionales</h2><p>Generación de reportes para dirección académica y unidades de apoyo.</p></div>
-<div class="mb-4"><a href="{{ url_for('reporte_institucional') }}" class="btn btn-primary"><i class="bi bi-printer"></i> Generar reporte institucional imprimible</a></div>
-<div class="report-grid">
-  {% set cards = [
-    ('riesgo_alto','bi-exclamation-octagon-fill','Estudiantes en riesgo alto','Listado de estudiantes con mayor prioridad de atención'),
-    ('riesgo_carrera','bi-bar-chart-fill','Riesgo por carrera','Análisis de riesgo agrupado por carrera'),
-    ('riesgo_semestre','bi-graph-up-arrow','Riesgo por semestre','Análisis de riesgo agrupado por semestre'),
-    ('intervenciones','bi-clipboard-check-fill','Intervenciones realizadas','Resumen de intervenciones por periodo'),
-    ('efectividad','bi-pie-chart-fill','Efectividad de intervenciones','Análisis del impacto de acciones'),
-    ('resumen','bi-file-earmark-text-fill','Resumen ejecutivo','Informe general para dirección académica')
-  ] %}
-  {% for tipo,icon,title,desc in cards %}<div class="report-card"><i class="bi {{ icon }}"></i><h5>{{ title }}</h5><p>{{ desc }}</p><a class="btn btn-outline-primary" href="{{ url_for('reporte_csv', tipo=tipo) }}">Generar</a></div>{% endfor %}
+<div class="page-title"><h2>Reportes Institucionales</h2><p>Consulta, filtrado y exportación de resultados del SIAT-DE.</p></div>
+
+<div class="panel mb-4">
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-4"><label class="form-label">Carrera</label><select name="carrera" class="form-select"><option value="">Todas</option>{% for c in carreras %}<option value="{{ c }}" {% if filtros.get('carrera')==c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><label class="form-label">Semestre</label><select name="semestre" class="form-select"><option value="">Todos</option>{% for s in semestres %}<option value="{{ s }}" {% if filtros.get('semestre')==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><label class="form-label">Nivel de riesgo</label><select name="riesgo" class="form-select"><option value="">Todos</option>{% for r in ['Bajo','Medio','Alto'] %}<option value="{{ r }}" {% if filtros.get('riesgo')==r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
+    <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Aplicar</button></div>
+    <div class="col-md-2"><a href="{{ url_for('reportes') }}" class="btn btn-outline-secondary w-100">Limpiar</a></div>
+  </form>
 </div>
-<div class="text-center mt-4 muted">Formatos disponibles: CSV y reporte institucional imprimible/guardable como PDF desde el navegador.</div>
+
+<div class="report-kpis mb-4">
+  <div><span>Estudiantes filtrados</span><strong>{{ kpis.total }}</strong></div>
+  <div><span>Riesgo alto</span><strong>{{ kpis.alto }}</strong></div>
+  <div><span>Riesgo medio</span><strong>{{ kpis.medio }}</strong></div>
+  <div><span>Riesgo bajo</span><strong>{{ kpis.bajo }}</strong></div>
+</div>
+
+{% set query = filtros.to_dict() %}
+<div class="report-grid">
+{% set cards = [
+  ('riesgo_alto','bi-exclamation-octagon-fill','Estudiantes en riesgo alto','Casos con mayor prioridad de atención'),
+  ('riesgo_carrera','bi-bar-chart-fill','Riesgo por carrera','Totales y porcentajes por carrera'),
+  ('riesgo_semestre','bi-graph-up-arrow','Riesgo por semestre','Totales y porcentajes por semestre'),
+  ('alertas','bi-bell-fill','Alertas priorizadas','Estudiantes con riesgo medio y alto'),
+  ('resumen','bi-file-earmark-text-fill','Base consolidada','Resultados individuales filtrados')
+] %}
+{% for tipo,icon,title,desc in cards %}
+<div class="report-card">
+  <i class="bi {{ icon }}"></i><h5>{{ title }}</h5><p>{{ desc }}</p>
+  <div class="d-flex gap-2 justify-content-center">
+    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('descargar_reporte', tipo=tipo, formato='csv', **query) }}">CSV</a>
+    <a class="btn btn-sm btn-success" href="{{ url_for('descargar_reporte', tipo=tipo, formato='xlsx', **query) }}"><i class="bi bi-file-earmark-excel"></i> Excel</a>
+  </div>
+</div>
+{% endfor %}
+<div class="report-card"><i class="bi bi-printer-fill"></i><h5>Resumen ejecutivo</h5><p>Documento institucional imprimible o guardable como PDF.</p><a href="{{ url_for('reporte_institucional', **query) }}" class="btn btn-primary">Vista imprimible</a></div>
+</div>
+
+<div class="panel mt-4">
+  <h5>Vista previa de casos priorizados</h5>
+  <div class="table-responsive"><table class="table table-hover align-middle">
+    <thead><tr><th>Código</th><th>Carrera</th><th>Semestre</th><th>Probabilidad</th><th>Riesgo</th><th>Acción sugerida</th></tr></thead>
+    <tbody>{% for _,e in preview.iterrows() %}<tr><td>{{ e.codigo_estudiante }}</td><td>{{ e.carrera }}</td><td>{{ e.semestre }}</td><td>{{ '%.1f'|format(e.probabilidad_desercion*100) }}%</td><td><span class="risk-badge {{ badge_class(e.nivel_riesgo) }}">{{ e.nivel_riesgo }}</span></td><td>{{ e.accion_sugerida }}</td></tr>{% else %}<tr><td colspan="6" class="text-center muted">No existen registros con los filtros seleccionados.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+<div class="alert alert-info mt-4"><i class="bi bi-info-circle"></i> Los reportes de intervenciones y efectividad se habilitarán cuando las acciones de seguimiento se almacenen de forma persistente; no se presentan resultados simulados como institucionales.</div>
 {% endblock %}
