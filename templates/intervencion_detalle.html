@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-title page-title-wide"><div><h2>Seguimiento de Intervención</h2><p>{{ i.codigo_estudiante }} · Registro Nº {{ i.id }}</p></div><a href="{{ url_for('intervenciones') }}" class="btn btn-outline-secondary">Volver</a></div>
+<div class="panel"><form method="post" class="row g-3">
+<div class="col-md-4"><label class="form-label">Tipo</label><select name="tipo" class="form-select">{% for t in ['Tutoría académica','Apoyo psicopedagógico','Orientación vocacional','Apoyo financiero','Llamada institucional','Seguimiento integral'] %}<option {% if i.tipo==t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+<div class="col-md-4"><label class="form-label">Responsable</label><input name="responsable" value="{{ i.responsable }}" class="form-control" required></div>
+<div class="col-md-4"><label class="form-label">Fecha de intervención</label><input type="date" name="fecha_intervencion" value="{{ i.fecha_intervencion }}" class="form-control"></div>
+<div class="col-md-3"><label class="form-label">Riesgo inicial</label><input value="{{ i.nivel_riesgo_inicial }} · {{ '%.1f'|format(i.probabilidad_inicial*100) }}%" class="form-control" disabled></div>
+<div class="col-md-3"><label class="form-label">Probabilidad actual (%)</label><input type="number" min="0" max="100" step="0.1" name="probabilidad_final" value="{{ '%.1f'|format(i.probabilidad_final*100) if i.probabilidad_final is not none else '' }}" class="form-control"></div>
+<div class="col-md-3"><label class="form-label">Estado</label><select name="estado" class="form-select">{% for e in ['Pendiente','En proceso','Finalizada'] %}<option {% if i.estado==e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+<div class="col-md-3"><label class="form-label">Próximo seguimiento</label><input type="date" name="fecha_seguimiento" value="{{ i.fecha_seguimiento or '' }}" class="form-control"></div>
+<div class="col-md-6"><label class="form-label">Resultado</label><input name="resultado" value="{{ i.resultado or '' }}" class="form-control" placeholder="Ej.: mejoró asistencia y rendimiento"></div>
+<div class="col-md-6"><label class="form-label">Observaciones</label><textarea name="observaciones" class="form-control" rows="3">{{ i.observaciones or '' }}</textarea></div>
+<div class="col-12 text-end"><button class="btn btn-primary"><i class="bi bi-save"></i> Guardar seguimiento</button></div>
+</form></div>
+{% endblock %}
