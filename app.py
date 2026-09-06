@@ -671,12 +671,16 @@ def simulador():
 @app.route("/reporte-institucional")
 def reporte_institucional():
     if not require_login(): return redirect(url_for("login"))
-    df=load_dataset()
-    payload=academic_analytics_payload(df)
-    kpis=kpi_data(df)
-    insights=institutional_insights(df)
-    criticos=df.sort_values("probabilidad_desercion",ascending=False).head(10)
-    return render_template("reporte_institucional.html", kpis=kpis, insights=insights, criticos=criticos, aa=payload)
+    df = apply_report_filters(load_dataset())
+    payload = academic_analytics_payload(df)
+    kpis = kpi_data(df)
+    insights = institutional_insights(df)
+    criticos = df.sort_values("probabilidad_desercion", ascending=False).head(10)
+    return render_template(
+        "reporte_institucional.html", kpis=kpis, insights=insights,
+        criticos=criticos, aa=payload, filtros=request.args,
+        fecha_generacion=datetime.now()
+    )
 
 @app.route("/administracion")
 def administracion():
