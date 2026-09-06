@@ -9,6 +9,10 @@ import numpy as np
 import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, Response
 from werkzeug.utils import secure_filename
+from persistence import (
+    sync_alerts, list_alerts, get_alert, update_alert, create_intervention,
+    list_interventions, get_intervention, update_intervention, effectiveness_report
+)
 
 warnings.filterwarnings("ignore")
 
@@ -517,29 +521,85 @@ def analitica_academica():
 def alertas():
     if not require_login(): return redirect(url_for("login"))
     df = load_dataset()
-    alertas = df[df["nivel_riesgo"].isin(["Medio", "Alto"])].copy()
-    alertas["motivo"] = alertas.apply(critical_reason, axis=1)
-    alertas["responsable"] = np.where(alertas["nivel_riesgo"].eq("Alto"), "Bienestar Estudiantil", "Tutor Académico")
-    alertas["estado_alerta"] = np.where(alertas["nivel_riesgo"].eq("Alto"), "Pendiente", "En proceso")
-    return render_template("alertas.html", alertas=alertas.sort_values("probabilidad_desercion", ascending=False).head(300))
+    active = df[df["nivel_riesgo"].isin(["Medio", "Alto"])].copy()
+    records = [{
+        "codigo_estudiante": row["codigo_estudiante"], "carrera": row.get("carrera", ""),
+        "semestre": row.get("semestre", ""), "nivel_riesgo": row["nivel_riesgo"],
+        "probabilidad": row["probabilidad_desercion"], "motivo": critical_reason(row),
+        "responsable": "Bienestar Estudiantil" if row["nivel_riesgo"] == "Alto" else "Tutor Académico"
+    } for _, row in active.iterrows()]
+    sync_alerts(records)
+    data = list_alerts(riesgo=request.args.get("riesgo", ""),
+                       estado=request.args.get("estado", ""),
+                       q=request.args.get("q", "").strip())
+    return render_template("alertas.html", alertas=data, filtros=request.args)
 
 
-@app.route("/intervenciones")
+@app.route("/alertas/<int:alerta_id>/actualizar", methods=["POST"])
+def actualizar_alerta(alerta_id):
+    if not require_login(): return redirect(url_for("login"))
+    estado = request.form.get("estado", "Pendiente")
+    responsable = request.form.get("responsable", "").strip() or "Sin asignar"
+    if estado not in ["Pendiente", "En proceso", "Atendida", "Cerrada"]:
+        flash("Estado de alerta no válido.", "danger")
+    else:
+        update_alert(alerta_id, estado, responsable)
+        flash("Alerta actualizada correctamente.", "success")
+    return redirect(url_for("alertas"))
+
+
+@app.route("/intervenciones", methods=["GET", "POST"])
 def intervenciones():
     if not require_login(): return redirect(url_for("login"))
-    df = load_dataset().sort_values("probabilidad_desercion", ascending=False).head(24).copy()
-    tipos = ["Tutoría académica", "Apoyo psicopedagógico", "Orientación vocacional", "Apoyo financiero", "Llamada institucional"]
-    data = []
-    for i, (_, r) in enumerate(df.iterrows()):
-        data.append({
-            "fecha": f"{(i%27)+1:02d}/05/2025",
-            "codigo": r["codigo_estudiante"],
-            "intervencion": tipos[i % len(tipos)],
-            "responsable": "Bienestar Estudiantil" if r["nivel_riesgo"] == "Alto" else "Tutor Académico",
-            "estado": "En proceso" if i % 3 else "Pendiente",
-            "resultado": "Mejoró" if i % 4 == 0 else ("Asistió" if i % 2 == 0 else "Seguimiento")
+    if request.method == "POST":
+        alerta = get_alert(request.form.get("alerta_id", type=int))
+        if not alerta:
+            flash("La alerta seleccionada no existe.", "danger")
+        else:
+            create_intervention({
+                "alerta_id": alerta["id"], "codigo_estudiante": alerta["codigo_estudiante"],
+                "tipo": request.form.get("tipo", "Tutoría académica"),
+                "responsable": request.form.get("responsable", "").strip() or alerta["responsable"],
+                "fecha_intervencion": request.form.get("fecha_intervencion") or datetime.now().strftime("%Y-%m-%d"),
+                "estado": request.form.get("estado", "Pendiente"),
+                "resultado": request.form.get("resultado", ""),
+                "observaciones": request.form.get("observaciones", ""),
+                "probabilidad_inicial": alerta["probabilidad"],
+                "nivel_riesgo_inicial": alerta["nivel_riesgo"],
+                "fecha_seguimiento": request.form.get("fecha_seguimiento")
+            })
+            flash("Intervención registrada correctamente.", "success")
+            return redirect(url_for("intervenciones"))
+    data = list_interventions(estado=request.args.get("estado", ""), tipo=request.args.get("tipo", ""))
+    available_alerts = [a for a in list_alerts() if a["estado"] != "Cerrada"]
+    return render_template("intervenciones.html", intervenciones=data, alertas=available_alerts,
+                           filtros=request.args, hoy=datetime.now().strftime("%Y-%m-%d"))
+
+
+@app.route("/intervenciones/<int:intervencion_id>", methods=["GET", "POST"])
+def detalle_intervencion(intervencion_id):
+    if not require_login(): return redirect(url_for("login"))
+    item = get_intervention(intervencion_id)
+    if not item:
+        flash("Intervención no encontrada.", "warning")
+        return redirect(url_for("intervenciones"))
+    if request.method == "POST":
+        final_text = request.form.get("probabilidad_final", "").strip()
+        final = float(final_text) / 100 if final_text else None
+        update_intervention(intervencion_id, {
+            "tipo": request.form.get("tipo", item["tipo"]),
+            "responsable": request.form.get("responsable", item["responsable"]),
+            "fecha_intervencion": request.form.get("fecha_intervencion", item["fecha_intervencion"]),
+            "estado": request.form.get("estado", item["estado"]),
+            "resultado": request.form.get("resultado", ""),
+            "observaciones": request.form.get("observaciones", ""),
+            "probabilidad_final": final,
+            "nivel_riesgo_final": classify_risk(final) if final is not None else None,
+            "fecha_seguimiento": request.form.get("fecha_seguimiento")
         })
-    return render_template("intervenciones.html", intervenciones=data)
+        flash("Seguimiento actualizado correctamente.", "success")
+        return redirect(url_for("detalle_intervencion", intervencion_id=intervencion_id))
+    return render_template("intervencion_detalle.html", i=item)
 
 
 def apply_report_filters(df):
@@ -582,6 +642,10 @@ def build_report(df, tipo):
         out = df[df["nivel_riesgo"].isin(["Medio", "Alto"])][detail_cols].copy()
         out["motivo"] = df.loc[out.index].apply(critical_reason, axis=1)
         return out.sort_values("probabilidad_desercion", ascending=False)
+    if tipo == "intervenciones":
+        return pd.DataFrame(list_interventions())
+    if tipo == "efectividad":
+        return pd.DataFrame(effectiveness_report())
     if tipo == "resumen":
         return df[detail_cols].sort_values("probabilidad_desercion", ascending=False)
     raise ValueError("Tipo de reporte no válido")
