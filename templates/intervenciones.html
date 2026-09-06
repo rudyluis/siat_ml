@@ -1,11 +1,18 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="page-title"><h2>Intervenciones y Seguimiento</h2><p>Registro operativo de acciones institucionales posteriores a la alerta.</p></div>
-<div class="panel mb-4">
-  <div class="row g-3"><div class="col-md-3"><select class="form-select"><option>Todos los estudiantes</option></select></div><div class="col-md-3"><select class="form-select"><option>Todos los tipos</option><option>Tutoría académica</option><option>Apoyo financiero</option></select></div><div class="col-md-3"><select class="form-select"><option>Todos los estados</option><option>Pendiente</option><option>En proceso</option></select></div><div class="col-md-3"><button class="btn btn-success w-100"><i class="bi bi-plus-lg"></i> Nueva intervención</button></div></div>
-</div>
-<div class="panel">
-  <div class="table-responsive"><table id="tablaData" class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Estudiante</th><th>Intervención</th><th>Responsable</th><th>Estado</th><th>Resultado</th><th>Acciones</th></tr></thead><tbody>{% for i in intervenciones %}<tr><td>{{ i.fecha }}</td><td>{{ i.codigo }}</td><td>{{ i.intervencion }}</td><td>{{ i.responsable }}</td><td><span class="status-pill">{{ i.estado }}</span></td><td>{{ i.resultado }}</td><td><button class="btn btn-sm btn-outline-primary"><i class="bi bi-eye-fill"></i></button></td></tr>{% endfor %}</tbody></table></div>
-  <div class="text-center mt-3"><button class="btn btn-outline-primary">Ver seguimiento del estudiante</button></div>
-</div>
+<div class="page-title"><h2>Intervenciones y Seguimiento</h2><p>Registro permanente de acciones posteriores a una alerta.</p></div>
+<div class="panel mb-4" id="nueva"><h5>Nueva intervención</h5><form method="post" class="row g-3">
+<div class="col-md-4"><label class="form-label">Alerta / estudiante</label><select name="alerta_id" class="form-select" required><option value="">Seleccione</option>{% for a in alertas %}<option value="{{ a.id }}">{{ a.codigo_estudiante }} · {{ a.carrera }} · {{ a.nivel_riesgo }}</option>{% endfor %}</select></div>
+<div class="col-md-4"><label class="form-label">Tipo</label><select name="tipo" class="form-select">{% for t in ['Tutoría académica','Apoyo psicopedagógico','Orientación vocacional','Apoyo financiero','Llamada institucional','Seguimiento integral'] %}<option>{{ t }}</option>{% endfor %}</select></div>
+<div class="col-md-4"><label class="form-label">Responsable</label><input name="responsable" class="form-control" required></div>
+<div class="col-md-3"><label class="form-label">Fecha de intervención</label><input type="date" name="fecha_intervencion" value="{{ hoy }}" class="form-control" required></div>
+<div class="col-md-3"><label class="form-label">Próximo seguimiento</label><input type="date" name="fecha_seguimiento" class="form-control"></div>
+<div class="col-md-3"><label class="form-label">Estado</label><select name="estado" class="form-select"><option>Pendiente</option><option>En proceso</option><option>Finalizada</option></select></div>
+<div class="col-md-3 d-flex align-items-end"><button class="btn btn-success w-100"><i class="bi bi-save"></i> Registrar</button></div>
+<div class="col-12"><label class="form-label">Observaciones iniciales</label><textarea name="observaciones" class="form-control" rows="2"></textarea></div>
+</form></div>
+<div class="panel mb-4"><form method="get" class="row g-3 align-items-end"><div class="col-md-4"><label class="form-label">Tipo</label><select name="tipo" class="form-select"><option value="">Todos</option>{% for t in ['Tutoría académica','Apoyo psicopedagógico','Orientación vocacional','Apoyo financiero','Llamada institucional','Seguimiento integral'] %}<option {% if filtros.get('tipo')==t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div><div class="col-md-4"><label class="form-label">Estado</label><select name="estado" class="form-select"><option value="">Todos</option>{% for e in ['Pendiente','En proceso','Finalizada'] %}<option {% if filtros.get('estado')==e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div><div class="col-md-4"><button class="btn btn-primary w-100">Aplicar filtros</button></div></form></div>
+<div class="panel"><div class="table-responsive"><table id="tablaData" class="table table-hover align-middle"><thead><tr><th>Fecha</th><th>Estudiante</th><th>Intervención</th><th>Responsable</th><th>Estado</th><th>Resultado</th><th>Acciones</th></tr></thead><tbody>
+{% for i in intervenciones %}<tr><td>{{ i.fecha_intervencion }}</td><td>{{ i.codigo_estudiante }}<br><small>{{ i.carrera or '' }}</small></td><td>{{ i.tipo }}</td><td>{{ i.responsable }}</td><td><span class="status-pill">{{ i.estado }}</span></td><td>{{ i.resultado or 'Pendiente de evaluación' }}</td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('detalle_intervencion', intervencion_id=i.id) }}"><i class="bi bi-pencil-square"></i> Seguimiento</a></td></tr>{% else %}<tr><td colspan="7" class="text-center">Aún no se registraron intervenciones.</td></tr>{% endfor %}
+</tbody></table></div></div>
 {% endblock %}
