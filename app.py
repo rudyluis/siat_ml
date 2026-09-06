@@ -2,7 +2,7 @@
 import os
 import warnings
 from datetime import datetime
-from io import StringIO
+from io import StringIO, BytesIO
 
 import joblib
 import numpy as np
@@ -542,26 +542,105 @@ def intervenciones():
     return render_template("intervenciones.html", intervenciones=data)
 
 
+def apply_report_filters(df):
+    """Aplica los filtros institucionales comunes a vistas y exportaciones."""
+    carrera = request.args.get("carrera", "").strip()
+    semestre = request.args.get("semestre", "").strip()
+    riesgo = request.args.get("riesgo", "").strip()
+    if carrera and "carrera" in df.columns:
+        df = df[df["carrera"].astype(str) == carrera]
+    if semestre and "semestre" in df.columns:
+        df = df[df["semestre"].astype(str) == semestre]
+    if riesgo and "nivel_riesgo" in df.columns:
+        df = df[df["nivel_riesgo"] == riesgo]
+    return df
+
+
+def build_report(df, tipo):
+    """Construye cada reporte con información calculada, sin filas de demostración."""
+    detail_cols = [c for c in [
+        "codigo_estudiante", "nombre_estudiante", "carrera", "semestre",
+        "promedio_2sem", "asistencia_pct", "reprobaciones_total",
+        "alertas_academicas", "probabilidad_desercion", "nivel_riesgo",
+        "accion_sugerida"
+    ] if c in df.columns]
+    if tipo == "riesgo_alto":
+        return df[df["nivel_riesgo"] == "Alto"][detail_cols].sort_values(
+            "probabilidad_desercion", ascending=False
+        )
+    if tipo == "riesgo_carrera":
+        out = df.groupby(["carrera", "nivel_riesgo"], dropna=False).size().reset_index(name="total")
+        totals = out.groupby("carrera")["total"].transform("sum")
+        out["porcentaje"] = (out["total"] / totals * 100).round(1)
+        return out.sort_values(["carrera", "nivel_riesgo"])
+    if tipo == "riesgo_semestre":
+        out = df.groupby(["semestre", "nivel_riesgo"], dropna=False).size().reset_index(name="total")
+        totals = out.groupby("semestre")["total"].transform("sum")
+        out["porcentaje"] = (out["total"] / totals * 100).round(1)
+        return out.sort_values(["semestre", "nivel_riesgo"])
+    if tipo == "alertas":
+        out = df[df["nivel_riesgo"].isin(["Medio", "Alto"])][detail_cols].copy()
+        out["motivo"] = df.loc[out.index].apply(critical_reason, axis=1)
+        return out.sort_values("probabilidad_desercion", ascending=False)
+    if tipo == "resumen":
+        return df[detail_cols].sort_values("probabilidad_desercion", ascending=False)
+    raise ValueError("Tipo de reporte no válido")
+
+
 @app.route("/reportes")
 def reportes():
     if not require_login(): return redirect(url_for("login"))
-    return render_template("reportes.html")
+    base = load_dataset()
+    carreras = sorted(base["carrera"].dropna().astype(str).unique()) if "carrera" in base.columns else []
+    semestres = sorted(base["semestre"].dropna().astype(str).unique()) if "semestre" in base.columns else []
+    df = apply_report_filters(base)
+    preview_cols = [c for c in [
+        "codigo_estudiante", "carrera", "semestre", "probabilidad_desercion",
+        "nivel_riesgo", "accion_sugerida"
+    ] if c in df.columns]
+    return render_template(
+        "reportes.html", kpis=kpi_data(df), preview=df[preview_cols].sort_values(
+            "probabilidad_desercion", ascending=False
+        ).head(15), carreras=carreras, semestres=semestres, filtros=request.args
+    )
+
+
+@app.route("/reporte/<tipo>/<formato>")
+def descargar_reporte(tipo, formato):
+    if not require_login(): return redirect(url_for("login"))
+    try:
+        out = build_report(apply_report_filters(load_dataset()), tipo)
+    except ValueError:
+        flash("El reporte solicitado no existe.", "warning")
+        return redirect(url_for("reportes"))
+    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+    filename = f"siat_de_{tipo}_{stamp}"
+    if formato == "csv":
+        data = out.to_csv(index=False).encode("utf-8-sig")
+        return send_file(BytesIO(data), mimetype="text/csv", as_attachment=True,
+                         download_name=f"{filename}.csv")
+    if formato == "xlsx":
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            out.to_excel(writer, index=False, sheet_name="Reporte")
+            sheet = writer.book["Reporte"]
+            sheet.freeze_panes = "A2"
+            sheet.auto_filter.ref = sheet.dimensions
+            for column in sheet.columns:
+                letter = column[0].column_letter
+                width = min(max(len(str(cell.value or "")) for cell in column) + 2, 48)
+                sheet.column_dimensions[letter].width = width
+        buffer.seek(0)
+        return send_file(buffer, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                         as_attachment=True, download_name=f"{filename}.xlsx")
+    flash("Formato de descarga no válido.", "warning")
+    return redirect(url_for("reportes"))
 
 
 @app.route("/reporte_csv/<tipo>")
 def reporte_csv(tipo):
-    if not require_login(): return redirect(url_for("login"))
-    df = load_dataset()
-    if tipo == "riesgo_alto":
-        out = df[df["nivel_riesgo"] == "Alto"]
-    elif tipo == "riesgo_carrera":
-        out = df.groupby(["carrera", "nivel_riesgo"]).size().reset_index(name="total")
-    elif tipo == "riesgo_semestre":
-        out = df.groupby(["semestre", "nivel_riesgo"]).size().reset_index(name="total")
-    else:
-        out = df[["codigo_estudiante", "carrera", "semestre", "probabilidad_desercion", "nivel_riesgo", "accion_sugerida"]].head(200)
-    csv = out.to_csv(index=False)
-    return Response(csv, mimetype="text/csv", headers={"Content-Disposition": f"attachment;filename={tipo}.csv"})
+    """Compatibilidad con enlaces de versiones anteriores."""
+    return descargar_reporte(tipo, "csv")
 
 
 
