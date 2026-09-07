@@ -31,7 +31,7 @@
       <a class="nav-link {% if request.endpoint=='alertas' %}active{% endif %}" href="{{ url_for('alertas') }}"><i class="bi bi-bell-fill"></i><span>Alertas</span></a>
       <a class="nav-link {% if request.endpoint=='intervenciones' %}active{% endif %}" href="{{ url_for('intervenciones') }}"><i class="bi bi-clipboard2-pulse-fill"></i><span>Intervenciones</span></a>
       <a class="nav-link {% if request.endpoint=='reportes' %}active{% endif %}" href="{{ url_for('reportes') }}"><i class="bi bi-file-earmark-bar-graph-fill"></i><span>Reportes</span></a>
-      <a class="nav-link {% if request.endpoint=='administracion' %}active{% endif %}" href="{{ url_for('administracion') }}"><i class="bi bi-gear-fill"></i><span>Administración</span></a>
+      {% if session.get('rol') == 'Administrador' %}<a class="nav-link {% if request.endpoint in ['administracion','crear_usuario','editar_usuario','actualizar_configuracion'] %}active{% endif %}" href="{{ url_for('administracion') }}"><i class="bi bi-gear-fill"></i><span>Administración</span></a>{% endif %}
     </nav>
     <div class="sidebar-footer">Facultad de Ciencias Economicas y Financieras<br>Prototipo<br>UNIVALLE Cochabamba</div>
   </aside>
@@ -42,9 +42,9 @@
         <span class="topbar-title">Sistema Inteligente de Alerta Temprana</span>
       </div>
       <div class="topbar-user">
-        <span class="notification"><i class="bi bi-bell"></i></span>
-        <span class="avatar">A</span>
-        <span>{{ session.get('usuario','Admin') }}</span>
+        <a class="notification position-relative" href="{{ url_for('alertas') }}" title="Alertas pendientes y seguimientos vencidos"><i class="bi bi-bell"></i>{% if notification_counts.total %}<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ notification_counts.total }}</span>{% endif %}</a>
+        <span class="avatar">{{ session.get('usuario','A')[:1]|upper }}</span>
+        <span>{{ session.get('usuario','Usuario') }}<small class="d-block muted">{{ session.get('rol','Consulta') }}</small></span>
         <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('logout') }}">Salir</a>
       </div>
     </header>
