@@ -808,10 +808,19 @@ def reporte_pdf(tipo):
         "filtros": " · ".join(filters) if filters else "Todos los registros"
     }
     if tipo == "ejecutivo":
-        pdf = generate_executive_pdf(df, kpi_data(df), institutional_insights(df), meta)
+        insights = institutional_insights(df) if not df.empty else []
+        pdf = generate_executive_pdf(df, kpi_data(df), insights, meta)
         label = "resumen_ejecutivo"
     elif tipo == "alertas_intervenciones":
-        pdf = generate_alerts_pdf(list_alerts(), list_interventions(), meta)
+        alerts = list_alerts(riesgo=request.args.get("riesgo", ""))
+        carrera = request.args.get("carrera", "")
+        semestre = request.args.get("semestre", "")
+        if carrera: alerts = [a for a in alerts if str(a.get("carrera", "")) == carrera]
+        if semestre: alerts = [a for a in alerts if str(a.get("semestre", "")) == semestre]
+        interventions = list_interventions()
+        if carrera: interventions = [i for i in interventions if str(i.get("carrera", "")) == carrera]
+        if semestre: interventions = [i for i in interventions if str(i.get("semestre", "")) == semestre]
+        pdf = generate_alerts_pdf(alerts, interventions, meta)
         label = "alertas_intervenciones"
     elif tipo == "efectividad":
         pdf = generate_effectiveness_pdf(effectiveness_report(), meta)
