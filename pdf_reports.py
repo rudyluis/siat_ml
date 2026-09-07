@@ -1,6 +1,7 @@
 from io import BytesIO
 from datetime import datetime
 import os
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
@@ -34,7 +35,7 @@ REPORT_TITLES = {
 def _safe(value, default="—"):
     if value is None or value == "":
         return default
-    return str(value)
+    return escape(str(value))
 
 def _pct(value):
     try:
