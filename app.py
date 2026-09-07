@@ -405,10 +405,19 @@ def require_login():
     return session.get("logged_in") is True
 
 
+def can_manage_cases():
+    return session.get("rol") in ["Administrador", "Bienestar Estudiantil", "Tutor académico"]
+
+
+def can_run_predictions():
+    return session.get("rol") in ["Administrador", "Dirección académica"]
+
+
 @app.context_processor
 def inject_helpers():
     notices = notification_counts() if require_login() else {"total": 0}
-    return dict(badge_class=badge_class, now=datetime.now(), notification_counts=notices)
+    return dict(badge_class=badge_class, now=datetime.now(), notification_counts=notices,
+                can_manage_cases=can_manage_cases())
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -498,6 +507,9 @@ def perfil(codigo):
 @app.route("/prediccion", methods=["GET", "POST"])
 def prediccion():
     if not require_login(): return redirect(url_for("login"))
+    if not can_run_predictions():
+        flash("Su rol no permite ejecutar cargas predictivas.", "warning")
+        return redirect(url_for("dashboard"))
     result = None; preview = None; filename = None; validation = None
     if request.method == "POST":
         f = request.files.get("archivo")
@@ -557,6 +569,9 @@ def alertas():
 @app.route("/alertas/<int:alerta_id>/actualizar", methods=["POST"])
 def actualizar_alerta(alerta_id):
     if not require_login(): return redirect(url_for("login"))
+    if not can_manage_cases():
+        flash("Su rol no permite modificar alertas.", "warning")
+        return redirect(url_for("alertas"))
     estado = request.form.get("estado", "Pendiente")
     responsable = request.form.get("responsable", "").strip() or "Sin asignar"
     if estado not in ["Pendiente", "En proceso", "Atendida", "Cerrada"]:
@@ -572,6 +587,9 @@ def actualizar_alerta(alerta_id):
 @app.route("/intervenciones", methods=["GET", "POST"])
 def intervenciones():
     if not require_login(): return redirect(url_for("login"))
+    if request.method == "POST" and not can_manage_cases():
+        flash("Su rol no permite registrar intervenciones.", "warning")
+        return redirect(url_for("intervenciones"))
     if request.method == "POST":
         alerta = get_alert(request.form.get("alerta_id", type=int))
         if not alerta:
@@ -602,6 +620,9 @@ def intervenciones():
 @app.route("/intervenciones/<int:intervencion_id>", methods=["GET", "POST"])
 def detalle_intervencion(intervencion_id):
     if not require_login(): return redirect(url_for("login"))
+    if request.method == "POST" and not can_manage_cases():
+        flash("Su rol no permite actualizar seguimientos.", "warning")
+        return redirect(url_for("intervenciones"))
     item = get_intervention(intervencion_id)
     if not item:
         flash("Intervención no encontrada.", "warning")
