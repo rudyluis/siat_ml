@@ -5,9 +5,9 @@
 <div class="panel mb-4">
   <div class="page-title page-title-wide mb-3"><div><h4>Informes ejecutivos en PDF</h4><p>Documentos institucionales con indicadores, tablas, conclusiones y trazabilidad.</p></div></div>
   <div class="report-grid">
-    <div class="report-card"><i class="bi bi-file-earmark-pdf-fill text-danger"></i><h5>Resumen ejecutivo institucional</h5><p>Panorama general, distribución del riesgo, hallazgos y estudiantes priorizados.</p><a class="btn btn-danger" href="{{ url_for('reporte_pdf', tipo='ejecutivo', **filtros.to_dict()) }}"><i class="bi bi-download"></i> Descargar PDF</a></div>
-    <div class="report-card"><i class="bi bi-file-earmark-pdf-fill text-danger"></i><h5>Alertas e intervenciones</h5><p>Alertas prioritarias, responsables, acciones y seguimientos institucionales.</p><a class="btn btn-danger" href="{{ url_for('reporte_pdf', tipo='alertas_intervenciones', **filtros.to_dict()) }}"><i class="bi bi-download"></i> Descargar PDF</a></div>
-    <div class="report-card"><i class="bi bi-file-earmark-pdf-fill text-danger"></i><h5>Efectividad de intervenciones</h5><p>Casos evaluados, reducción observada del riesgo y resultados registrados.</p><a class="btn btn-danger" href="{{ url_for('reporte_pdf', tipo='efectividad', **filtros.to_dict()) }}"><i class="bi bi-download"></i> Descargar PDF</a></div>
+    <div class="report-card"><i class="bi bi-file-earmark-pdf-fill text-danger"></i><h5>Resumen ejecutivo institucional</h5><p>Panorama general, distribución del riesgo, hallazgos y estudiantes priorizados.</p><a class="btn btn-danger" href="{{ url_for('reporte_pdf', tipo='ejecutivo', **filtros.to_dict()) }}"></i> Descargar PDF</a></div>
+    <div class="report-card"><i class="bi bi-file-earmark-pdf-fill text-danger"></i><h5>Alertas e intervenciones</h5><p>Alertas prioritarias, responsables, acciones y seguimientos institucionales.</p><a class="btn btn-danger" href="{{ url_for('reporte_pdf', tipo='alertas_intervenciones', **filtros.to_dict()) }}"></i> Descargar PDF</a></div>
+    <div class="report-card"><i class="bi bi-file-earmark-pdf-fill text-danger"></i><h5>Efectividad de intervenciones</h5><p>Casos evaluados, reducción observada del riesgo y resultados registrados.</p><a class="btn btn-danger" href="{{ url_for('reporte_pdf', tipo='efectividad', **filtros.to_dict()) }}"> Descargar PDF</a></div>
   </div>
 </div>
 <div class="panel mb-4">
