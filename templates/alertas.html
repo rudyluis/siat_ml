@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
+{% set filtros = filtros | default(request.args) %}
 <div class="page-title"><h2>Alertas Tempranas</h2><p>Gestión persistente de estudiantes con riesgo medio y alto.</p></div>
 <div class="panel mb-4"><form method="get" class="row g-3 align-items-end">
 <div class="col-md-3"><label class="form-label">Riesgo</label><select name="riesgo" class="form-select"><option value="">Todos</option>{% for r in ['Alto','Medio'] %}<option value="{{ r }}" {% if filtros.get('riesgo')==r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></div>
