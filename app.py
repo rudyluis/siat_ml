@@ -9,9 +9,13 @@ import numpy as np
 import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, Response
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+from pdf_reports import generate_executive_pdf, generate_alerts_pdf, generate_effectiveness_pdf
 from persistence import (
     sync_alerts, list_alerts, get_alert, update_alert, create_intervention,
-    list_interventions, get_intervention, update_intervention, effectiveness_report
+    list_interventions, get_intervention, update_intervention, effectiveness_report,
+    get_user_by_username, list_users, create_user_account, update_user_account,
+    ensure_admin, get_settings, save_setting, log_audit, list_audit, notification_counts
 )
 
 warnings.filterwarnings("ignore")
@@ -31,12 +35,18 @@ FEATURE_COLUMNS = [
     "beneficiario_beca", "apoyo_financiero_tipo", "pagos_al_dia", "deudor",
     "genero", "estado_civil", "turno_estudio", "modalidad_ingreso"
 ]
-LOW_T = 0.25
-HIGH_T = 0.37
+_settings = get_settings()
+LOW_T = float(_settings["low_threshold"])
+HIGH_T = float(_settings["high_threshold"])
 
 app = Flask(__name__)
-app.secret_key = "siat-de-doctoral-prototipo"
-app.config["UPLOAD_FOLDER"] = os.path.join(APP_ROOT, "data")
+app.secret_key = os.environ.get("SECRET_KEY", "cambiar-esta-clave-en-produccion")
+app.config.update(
+    UPLOAD_FOLDER=os.path.join(APP_ROOT, "data"),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax"
+)
+ensure_admin(generate_password_hash(os.environ.get("SIAT_ADMIN_PASSWORD", "admin123")))
 
 _MODEL = None
 _MODEL_ERROR = None
@@ -396,26 +406,45 @@ def require_login():
     return session.get("logged_in") is True
 
 
+def can_manage_cases():
+    return session.get("rol") in ["Administrador", "Bienestar Estudiantil", "Tutor académico"]
+
+
+def can_run_predictions():
+    return session.get("rol") in ["Administrador", "Dirección académica"]
+
+
 @app.context_processor
 def inject_helpers():
-    return dict(badge_class=badge_class, now=datetime.now())
+    notices = notification_counts() if require_login() else {"total": 0}
+    return dict(badge_class=badge_class, now=datetime.now(), notification_counts=notices,
+                can_manage_cases=can_manage_cases())
 
 
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        user = request.form.get("usuario")
-        password = request.form.get("password")
-        if user == "admin" and password == "admin123":
+        username = request.form.get("usuario", "").strip()
+        password = request.form.get("password", "")
+        user = get_user_by_username(username)
+        if user and user["activo"] and check_password_hash(user["password_hash"], password):
+            session.clear()
             session["logged_in"] = True
-            session["usuario"] = "Admin"
+            session["user_id"] = user["id"]
+            session["username"] = user["usuario"]
+            session["usuario"] = user["nombre"]
+            session["rol"] = user["rol"]
+            log_audit(user["usuario"], "Inicio de sesión", "Seguridad")
             return redirect(url_for("dashboard"))
-        flash("Credenciales inválidas. Use admin / admin123", "danger")
+        flash("Usuario, contraseña o estado de cuenta no válidos.", "danger")
     return render_template("login.html")
 
 
 @app.route("/logout")
 def logout():
+    username = session.get("username", "desconocido")
+    if require_login():
+        log_audit(username, "Cierre de sesión", "Seguridad")
     session.clear()
     return redirect(url_for("login"))
 
@@ -479,6 +508,9 @@ def perfil(codigo):
 @app.route("/prediccion", methods=["GET", "POST"])
 def prediccion():
     if not require_login(): return redirect(url_for("login"))
+    if not can_run_predictions():
+        flash("Su rol no permite ejecutar cargas predictivas.", "warning")
+        return redirect(url_for("dashboard"))
     result = None; preview = None; filename = None; validation = None
     if request.method == "POST":
         f = request.files.get("archivo")
@@ -538,12 +570,17 @@ def alertas():
 @app.route("/alertas/<int:alerta_id>/actualizar", methods=["POST"])
 def actualizar_alerta(alerta_id):
     if not require_login(): return redirect(url_for("login"))
+    if not can_manage_cases():
+        flash("Su rol no permite modificar alertas.", "warning")
+        return redirect(url_for("alertas"))
     estado = request.form.get("estado", "Pendiente")
     responsable = request.form.get("responsable", "").strip() or "Sin asignar"
     if estado not in ["Pendiente", "En proceso", "Atendida", "Cerrada"]:
         flash("Estado de alerta no válido.", "danger")
     else:
         update_alert(alerta_id, estado, responsable)
+        log_audit(session.get("username", ""), "Actualizar alerta", "Alertas",
+                  f"Alerta {alerta_id}: {estado}, responsable {responsable}")
         flash("Alerta actualizada correctamente.", "success")
     return redirect(url_for("alertas"))
 
@@ -551,6 +588,9 @@ def actualizar_alerta(alerta_id):
 @app.route("/intervenciones", methods=["GET", "POST"])
 def intervenciones():
     if not require_login(): return redirect(url_for("login"))
+    if request.method == "POST" and not can_manage_cases():
+        flash("Su rol no permite registrar intervenciones.", "warning")
+        return redirect(url_for("intervenciones"))
     if request.method == "POST":
         alerta = get_alert(request.form.get("alerta_id", type=int))
         if not alerta:
@@ -568,6 +608,8 @@ def intervenciones():
                 "nivel_riesgo_inicial": alerta["nivel_riesgo"],
                 "fecha_seguimiento": request.form.get("fecha_seguimiento")
             })
+            log_audit(session.get("username", ""), "Crear intervención", "Intervenciones",
+                      f"Estudiante {alerta['codigo_estudiante']}")
             flash("Intervención registrada correctamente.", "success")
             return redirect(url_for("intervenciones"))
     data = list_interventions(estado=request.args.get("estado", ""), tipo=request.args.get("tipo", ""))
@@ -579,6 +621,9 @@ def intervenciones():
 @app.route("/intervenciones/<int:intervencion_id>", methods=["GET", "POST"])
 def detalle_intervencion(intervencion_id):
     if not require_login(): return redirect(url_for("login"))
+    if request.method == "POST" and not can_manage_cases():
+        flash("Su rol no permite actualizar seguimientos.", "warning")
+        return redirect(url_for("intervenciones"))
     item = get_intervention(intervencion_id)
     if not item:
         flash("Intervención no encontrada.", "warning")
@@ -597,6 +642,8 @@ def detalle_intervencion(intervencion_id):
             "nivel_riesgo_final": classify_risk(final) if final is not None else None,
             "fecha_seguimiento": request.form.get("fecha_seguimiento")
         })
+        log_audit(session.get("username", ""), "Actualizar seguimiento", "Intervenciones",
+                  f"Intervención {intervencion_id}")
         flash("Seguimiento actualizado correctamente.", "success")
         return redirect(url_for("detalle_intervencion", intervencion_id=intervencion_id))
     return render_template("intervencion_detalle.html", i=item)
@@ -746,10 +793,111 @@ def reporte_institucional():
         fecha_generacion=datetime.now()
     )
 
+@app.route("/reporte-pdf/<tipo>")
+def reporte_pdf(tipo):
+    if not require_login(): return redirect(url_for("login"))
+    df = apply_report_filters(load_dataset())
+    filters = []
+    if request.args.get("carrera"): filters.append(f"Carrera: {request.args['carrera']}")
+    if request.args.get("semestre"): filters.append(f"Semestre: {request.args['semestre']}")
+    if request.args.get("riesgo"): filters.append(f"Riesgo: {request.args['riesgo']}")
+    meta = {
+        "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "fecha_corte": datetime.now().strftime("%d/%m/%Y"),
+        "usuario": session.get("usuario", "Usuario"),
+        "filtros": " · ".join(filters) if filters else "Todos los registros"
+    }
+    if tipo == "ejecutivo":
+        insights = institutional_insights(df) if not df.empty else []
+        pdf = generate_executive_pdf(df, kpi_data(df), insights, meta)
+        label = "resumen_ejecutivo"
+    elif tipo == "alertas_intervenciones":
+        alerts = list_alerts(riesgo=request.args.get("riesgo", ""))
+        carrera = request.args.get("carrera", "")
+        semestre = request.args.get("semestre", "")
+        if carrera: alerts = [a for a in alerts if str(a.get("carrera", "")) == carrera]
+        if semestre: alerts = [a for a in alerts if str(a.get("semestre", "")) == semestre]
+        interventions = list_interventions()
+        if carrera: interventions = [i for i in interventions if str(i.get("carrera", "")) == carrera]
+        if semestre: interventions = [i for i in interventions if str(i.get("semestre", "")) == semestre]
+        pdf = generate_alerts_pdf(alerts, interventions, meta)
+        label = "alertas_intervenciones"
+    elif tipo == "efectividad":
+        pdf = generate_effectiveness_pdf(effectiveness_report(), meta)
+        label = "efectividad"
+    else:
+        flash("El reporte PDF solicitado no existe.", "warning")
+        return redirect(url_for("reportes"))
+    log_audit(session.get("username", ""), "Generar PDF", "Reportes", label)
+    filename = f"siat_de_{label}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return send_file(pdf, mimetype="application/pdf", as_attachment=True, download_name=filename)
+
+
 @app.route("/administracion")
 def administracion():
     if not require_login(): return redirect(url_for("login"))
-    return render_template("administracion.html", low=LOW_T, high=HIGH_T, model_error=_MODEL_ERROR)
+    if session.get("rol") != "Administrador":
+        flash("Esta sección requiere rol de Administrador.", "warning")
+        return redirect(url_for("dashboard"))
+    settings = get_settings()
+    return render_template("administracion.html", usuarios=list_users(), settings=settings,
+                           auditoria=list_audit(80), model_error=_MODEL_ERROR)
+
+
+@app.route("/administracion/usuarios", methods=["POST"])
+def crear_usuario():
+    if not require_login() or session.get("rol") != "Administrador":
+        return redirect(url_for("dashboard"))
+    username = request.form.get("usuario", "").strip().lower()
+    name = request.form.get("nombre", "").strip()
+    password = request.form.get("password", "")
+    role = request.form.get("rol", "Consulta")
+    if not username or not name or len(password) < 8:
+        flash("Complete los datos; la contraseña debe tener al menos 8 caracteres.", "warning")
+    else:
+        try:
+            create_user_account(username, name, generate_password_hash(password), role)
+            log_audit(session["username"], "Crear usuario", "Administración", f"{username} · {role}")
+            flash("Usuario creado correctamente.", "success")
+        except Exception:
+            flash("No fue posible crear el usuario; verifique que no esté duplicado.", "danger")
+    return redirect(url_for("administracion"))
+
+
+@app.route("/administracion/usuarios/<int:user_id>", methods=["POST"])
+def editar_usuario(user_id):
+    if not require_login() or session.get("rol") != "Administrador":
+        return redirect(url_for("dashboard"))
+    password = request.form.get("password", "")
+    update_user_account(
+        user_id, request.form.get("nombre", "").strip(),
+        request.form.get("rol", "Consulta"), request.form.get("activo") == "1",
+        generate_password_hash(password) if password else None
+    )
+    log_audit(session["username"], "Actualizar usuario", "Administración", f"Usuario ID {user_id}")
+    flash("Usuario actualizado correctamente.", "success")
+    return redirect(url_for("administracion"))
+
+
+@app.route("/administracion/configuracion", methods=["POST"])
+def actualizar_configuracion():
+    global LOW_T, HIGH_T
+    if not require_login() or session.get("rol") != "Administrador":
+        return redirect(url_for("dashboard"))
+    low = request.form.get("low_threshold", type=float)
+    high = request.form.get("high_threshold", type=float)
+    periodo = request.form.get("periodo_activo", "").strip()
+    if low is None or high is None or not (0 < low < high < 1):
+        flash("Los umbrales deben cumplir: 0 < bajo < alto < 1.", "danger")
+    else:
+        save_setting("low_threshold", low, "Límite entre riesgo bajo y medio")
+        save_setting("high_threshold", high, "Límite entre riesgo medio y alto")
+        save_setting("periodo_activo", periodo, "Periodo académico activo")
+        LOW_T, HIGH_T = low, high
+        log_audit(session["username"], "Actualizar configuración", "Administración",
+                  f"Umbrales {low} / {high}; periodo {periodo}")
+        flash("Configuración actualizada correctamente.", "success")
+    return redirect(url_for("administracion"))
 
 
 if __name__ == "__main__":

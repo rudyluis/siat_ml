@@ -1,13 +1,38 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="page-title"><h2>Administración del Sistema</h2><p>Configuración funcional simulada del prototipo institucional.</p></div>
-<div class="admin-grid">
-  <div class="admin-card"><i class="bi bi-people-fill"></i><h5>Usuarios</h5><p>Gestionar usuarios del sistema</p></div>
-  <div class="admin-card"><i class="bi bi-shield-lock-fill"></i><h5>Roles</h5><p>Gestionar roles y permisos</p></div>
-  <div class="admin-card"><i class="bi bi-mortarboard-fill"></i><h5>Carreras</h5><p>Gestionar carreras y programas</p></div>
-  <div class="admin-card"><i class="bi bi-calendar3"></i><h5>Periodos académicos</h5><p>Gestionar periodos académicos</p></div>
-  <div class="admin-card"><i class="bi bi-speedometer"></i><h5>Umbrales de riesgo</h5><p>Bajo &lt; {{ low }} | Medio {{ low }}–{{ high }} | Alto ≥ {{ high }}</p></div>
-  <div class="admin-card"><i class="bi bi-cpu-fill"></i><h5>Modelo predictivo</h5><p>Subir y administrar modelos ML</p></div>
+<div class="page-title"><h2>Administración del Sistema</h2><p>Usuarios, seguridad, configuración institucional y trazabilidad.</p></div>
+
+<ul class="nav nav-tabs mb-4" role="tablist">
+<li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#usuarios">Usuarios y roles</button></li>
+<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#configuracion">Configuración</button></li>
+<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#auditoria">Auditoría</button></li>
+<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#modelo">Modelo ML</button></li>
+</ul>
+
+<div class="tab-content">
+<div class="tab-pane fade show active" id="usuarios">
+<div class="panel mb-4"><h5>Crear usuario</h5><form method="post" action="{{ url_for('crear_usuario') }}" class="row g-3">
+<div class="col-md-3"><label class="form-label">Usuario</label><input name="usuario" class="form-control" required></div>
+<div class="col-md-3"><label class="form-label">Nombre completo</label><input name="nombre" class="form-control" required></div>
+<div class="col-md-3"><label class="form-label">Contraseña inicial</label><input type="password" name="password" minlength="8" class="form-control" required></div>
+<div class="col-md-2"><label class="form-label">Rol</label><select name="rol" class="form-select">{% for r in ['Administrador','Dirección académica','Bienestar Estudiantil','Tutor académico','Consulta'] %}<option>{{ r }}</option>{% endfor %}</select></div>
+<div class="col-md-1 d-flex align-items-end"><button class="btn btn-success w-100"><i class="bi bi-plus-lg"></i></button></div>
+</form></div>
+<div class="panel"><h5>Usuarios registrados</h5><div class="table-responsive"><table class="table table-hover align-middle"><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>Nueva contraseña</th><th>Acción</th></tr></thead><tbody>
+{% for u in usuarios %}<tr><td><b>{{ u.usuario }}</b><form id="user-{{ u.id }}" method="post" action="{{ url_for('editar_usuario', user_id=u.id) }}"></form></td><td><input form="user-{{ u.id }}" name="nombre" value="{{ u.nombre }}" class="form-control form-control-sm" required></td><td><select form="user-{{ u.id }}" name="rol" class="form-select form-select-sm">{% for r in ['Administrador','Dirección académica','Bienestar Estudiantil','Tutor académico','Consulta'] %}<option {% if u.rol==r %}selected{% endif %}>{{ r }}</option>{% endfor %}</select></td><td><select form="user-{{ u.id }}" name="activo" class="form-select form-select-sm"><option value="1" {% if u.activo %}selected{% endif %}>Activo</option><option value="0" {% if not u.activo %}selected{% endif %}>Inactivo</option></select></td><td><input form="user-{{ u.id }}" type="password" name="password" minlength="8" class="form-control form-control-sm" placeholder="Sin cambio"></td><td><button form="user-{{ u.id }}" class="btn btn-sm btn-primary">Guardar</button></td></tr>{% endfor %}
+</tbody></table></div></div>
 </div>
-{% if model_error %}<div class="alert alert-warning mt-4">Modelo: requiere Scikit-learn 1.6.1 para carga exacta del pipeline entrenado.</div>{% endif %}
+
+<div class="tab-pane fade" id="configuracion"><div class="panel"><h5>Clasificación del riesgo</h5><form method="post" action="{{ url_for('actualizar_configuracion') }}" class="row g-3">
+<div class="col-md-4"><label class="form-label">Límite bajo → medio</label><input type="number" min="0.01" max="0.98" step="0.01" name="low_threshold" value="{{ settings.low_threshold }}" class="form-control" required><small class="muted">Ejemplo: 0.25 equivale a 25%</small></div>
+<div class="col-md-4"><label class="form-label">Límite medio → alto</label><input type="number" min="0.02" max="0.99" step="0.01" name="high_threshold" value="{{ settings.high_threshold }}" class="form-control" required><small class="muted">Debe ser mayor al límite bajo</small></div>
+<div class="col-md-4"><label class="form-label">Periodo académico activo</label><input name="periodo_activo" value="{{ settings.periodo_activo }}" class="form-control" required></div>
+<div class="col-12"><div class="alert alert-info">Clasificación vigente: Bajo &lt; {{ settings.low_threshold }} · Medio {{ settings.low_threshold }}–{{ settings.high_threshold }} · Alto ≥ {{ settings.high_threshold }}</div></div>
+<div class="col-12 text-end"><button class="btn btn-primary"><i class="bi bi-save"></i> Guardar configuración</button></div>
+</form></div></div>
+
+<div class="tab-pane fade" id="auditoria"><div class="panel"><h5>Últimas acciones registradas</h5><div class="table-responsive"><table class="table table-sm table-hover"><thead><tr><th>Fecha</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>{% for a in auditoria %}<tr><td>{{ a.fecha.replace('T',' ') }}</td><td>{{ a.usuario }}</td><td>{{ a.modulo }}</td><td>{{ a.accion }}</td><td>{{ a.detalle or '' }}</td></tr>{% else %}<tr><td colspan="5" class="text-center">Todavía no existen eventos.</td></tr>{% endfor %}</tbody></table></div></div></div>
+
+<div class="tab-pane fade" id="modelo"><div class="panel"><h5>Estado del modelo predictivo</h5>{% if model_error %}<div class="alert alert-warning">{{ model_error }}</div>{% else %}<div class="alert alert-success"><i class="bi bi-check-circle"></i> Modelo cargado correctamente.</div>{% endif %}<p class="muted">La sustitución o reentrenamiento del modelo se reservará para una versión posterior con validación técnica.</p></div></div>
+</div>
 {% endblock %}
