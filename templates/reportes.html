@@ -33,7 +33,13 @@
 {% for tipo,icon,title,desc in cards %}
 <div class="report-card">
   <i class="bi {{ icon }}"></i><h5>{{ title }}</h5><p>{{ desc }}</p>
- 
+
+   
+    <a class="btn btn-outline-primary" href="{{ url_for('descargar_reporte', tipo=tipo, formato='csv', **query) }}">CSV</a>
+    <a class="btn btn-outline-success" href="{{ url_for('descargar_reporte', tipo=tipo, formato='xlsx', **query) }}"> Excel</a>
+
+
+
 </div>
 {% endfor %}
 <div class="report-card"><i class="bi bi-printer-fill"></i><h5>Resumen ejecutivo</h5><p>Documento institucional imprimible o guardable como PDF.</p><a href="{{ url_for('reporte_institucional', **query) }}" class="btn btn-primary">Vista imprimible</a></div>
