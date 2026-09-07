@@ -10,6 +10,7 @@ import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, Response
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from pdf_reports import generate_executive_pdf, generate_alerts_pdf, generate_effectiveness_pdf
 from persistence import (
     sync_alerts, list_alerts, get_alert, update_alert, create_intervention,
     list_interventions, get_intervention, update_intervention, effectiveness_report,
@@ -791,6 +792,37 @@ def reporte_institucional():
         criticos=criticos, aa=payload, filtros=request.args,
         fecha_generacion=datetime.now()
     )
+
+@app.route("/reporte-pdf/<tipo>")
+def reporte_pdf(tipo):
+    if not require_login(): return redirect(url_for("login"))
+    df = apply_report_filters(load_dataset())
+    filters = []
+    if request.args.get("carrera"): filters.append(f"Carrera: {request.args['carrera']}")
+    if request.args.get("semestre"): filters.append(f"Semestre: {request.args['semestre']}")
+    if request.args.get("riesgo"): filters.append(f"Riesgo: {request.args['riesgo']}")
+    meta = {
+        "fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "fecha_corte": datetime.now().strftime("%d/%m/%Y"),
+        "usuario": session.get("usuario", "Usuario"),
+        "filtros": " · ".join(filters) if filters else "Todos los registros"
+    }
+    if tipo == "ejecutivo":
+        pdf = generate_executive_pdf(df, kpi_data(df), institutional_insights(df), meta)
+        label = "resumen_ejecutivo"
+    elif tipo == "alertas_intervenciones":
+        pdf = generate_alerts_pdf(list_alerts(), list_interventions(), meta)
+        label = "alertas_intervenciones"
+    elif tipo == "efectividad":
+        pdf = generate_effectiveness_pdf(effectiveness_report(), meta)
+        label = "efectividad"
+    else:
+        flash("El reporte PDF solicitado no existe.", "warning")
+        return redirect(url_for("reportes"))
+    log_audit(session.get("username", ""), "Generar PDF", "Reportes", label)
+    filename = f"siat_de_{label}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return send_file(pdf, mimetype="application/pdf", as_attachment=True, download_name=filename)
+
 
 @app.route("/administracion")
 def administracion():
